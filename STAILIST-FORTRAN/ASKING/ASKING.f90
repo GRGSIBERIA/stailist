@@ -11,48 +11,19 @@
 !  目的:  コンソール・アプリケーションのエントリーポイント。
 !
 !****************************************************************************
-
+    
     program ASKING
-
+        use Question
         implicit none
         
         ! 変数
-        character ask(20)*90
-        character command*10
-        integer is_japanese
-        integer is_state
-        integer command_line_count
-        
-        ! コマンドライン引数を受け取ってそれに合致した変数値を代入する
-        DO command_line_count = 1, iargc()
-            CALL GETARG(command_line_count, command)
-            
-            ! 日本語と英語の判別
-            IF (command == "-ja" .or. command == "-jp" .or. command == "-j") THEN
-                is_japanese = 1
-                GOTO 100
-            ELSE IF (command == "-en" .or. command == "-e") THEN
-                is_japanese = 0
-                GOTO 100
-            END IF
-            
-            ! State-Traitの判別
-            IF (command == "-state" .or. command == "-s") THEN
-                is_state = 1
-                GOTO 100
-            ELSE IF (command == "-trait" .or. command == "-t") THEN
-                is_state = 0
-                GOTO 100
-            END IF
-            
-100         CONTINUE ! カット
-        END DO
-        
-        ! コマンドライン引数より，質問文を準備する
+        CALL initialize_question()
         
         print *, 'Hello World'
 
     end program ASKING
+    
+     
 
     ! 0    5    0    5    0    5    0    5    0    5    0
     ! I feel calm
