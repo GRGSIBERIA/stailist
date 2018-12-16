@@ -14,21 +14,24 @@
     
     module Question
         implicit none
-        character, public :: ask(20)*100
-        character, private :: command*10
-        integer, private :: rotation(20)
-        integer, parameter :: N = 20    ! 質問項目数
-        integer, private :: is_japanese ! 日本語-英語の切り替え
-        integer, private :: is_state    ! STATE-TRAITの切り替え
-        integer, private :: point       ! 得点
-        integer, private :: command_line_count
-        
+        character, private :: ask(20)*100   ! 質問項目（ランダム化）
+        integer, private :: answer(20)      ! 被験者の回答（正規化済み）
+        integer, private :: number(20)      ! 質問項目番号（ランダムにする前の番号）
+        integer, private :: rotation(20)    ! 明るい回答フラグ（回答を正規化するフラグ）
+        integer, parameter :: N = 20        ! 質問項目数
+        integer, private :: is_japanese = 1 ! 日本語-英語の切り替え
+        integer, private :: is_state = 1    ! STATE-TRAITの切り替え
+        integer, private :: point = 0       ! 得点
         
     contains
         subroutine initialize_question()
-            is_state = 1
-            is_japanese = 1
-        
+            character command*10
+            integer command_line_count, count
+            
+            DO count=1, N
+                number(count) = count
+            END DO
+            
             ! コマンドライン引数を受け取ってそれに合致した変数値を代入する
             DO command_line_count = 1, iargc()
                 CALL GETARG(command_line_count, command)
@@ -111,14 +114,94 @@
                 rottemp = rotation(i)
                 rotation(i) = rotation(j)
                 rotation(j) = rottemp
+                
+                rottemp = number(i)
+                number(i) = number(j)
+                number(j) = rottemp
             END DO
-            
-            DO i = 1, N
-                print *, ask(i)
-            END DO
-            
             deallocate(seed)
-        end
+        end subroutine
+        
+        subroutine evaluate()
+            real normalized
+            normalized = point / (N*4.0)
+            IF (is_japanese == 1) THEN
+                print *, "あなたの得点は", normalized, "です"
+            ELSE
+                print *, "Your number of point is ", normalized
+            END IF
+        end subroutine
+        
+        subroutine tell_answer(index)
+            integer, intent(in) :: index
+            integer ans
+200         print *, "---------------------------------"
+            
+            IF (is_japanese == 1) THEN
+                print *, "1 (まったくない), 2 (いくらかある), 3 (かなりある), 4(はっきりある)"
+                print *, "質問項目：", ask(index)
+            ELSE
+                print *, "1 (NOT AT ALL), 2 (SOMEWHAT), 3 (MODERATELY SO), 4 (VERY MUCH SO)"
+                print *, "QUESTION: "
+            END IF
+            
+            read *, ans
+            
+            ! 回答のバリデーション
+            IF (ans > 4 .or. ans < 1) THEN
+                IF (is_japanese == 1) THEN
+                    print *, "1～4 までの値を入力してください"
+                ELSE
+                    print *, "Please fill in the value between 1 and 4."
+                END IF
+                GOTO 200
+            END IF
+            
+            ! 回答の正規化
+            IF (rotation(index) == 1) THEN
+                ans = abs(ans - 5)
+            END IF
+            
+            ! 回答の入力
+            answer(index) = ans
+            point = point + ans
+        end subroutine
+        
+        subroutine write_csv()
+            integer, parameter :: FNO = 99
+            integer values(8)
+            character date*8, time*10, diff*5
+            character realdate*25, data_format*61
+            integer i
+            ! YYYY/MM/DD-HH:MM:MM+XX:XX
+            realdate = "    /  /  -  :  :     :  "
+            
+            open(FNO, file="ANSWER.CSV", status="UNKNOWN", action="write", position="append")  ! ファイルが作成されていないならば作成し，作成されていればOLDで開く
+            CALL DATE_AND_TIME(date, time, diff, values)
+            
+            ! DATETIMEな文字列を生成
+            realdate(1:4) = date(1:4)
+            realdate(6:7) = date(5:6)
+            realdate(9:10) = date(7:8)
+            realdate(12:13) = time(1:2)
+            realdate(15:16) = time(3:4)
+            realdate(18:19) = time(5:6)
+            realdate(20:22) = diff(1:3)
+            realdate(24:25) = diff(4:5)
+            
+            ! 普通に出力すると６要素ごとに改行される
+            data_format(1:3) = "(i3"
+            DO i=1, N-1
+                data_format(i*3+1:i*3+4) = ",i3"
+            END DO
+            data_format(61:61) = ")"
+            
+            write (FNO, *) realdate
+            write (FNO, data_format) number
+            write (FNO, data_format) answer
+            write (FNO, *) point, point / (4.0 * N)
+            close (FNO)
+        end subroutine
         
         subroutine set_state_rotation()
             rotation = (/ 1, 1, 0, 0, 1, 0, 0, 1, 0, 1, 1, 0, 0, 0, 1, 1, 0, 0, 1, 1 /)
@@ -126,7 +209,6 @@
         
         subroutine set_trait_rotation()
             rotation = (/ 1, 0, 1, 0, 0, 1, 1, 0, 0, 1, 0, 0, 1, 1, 0, 1, 0, 0, 1, 0 /)
-            print *, "test"
         end subroutine
         
         subroutine state_english()

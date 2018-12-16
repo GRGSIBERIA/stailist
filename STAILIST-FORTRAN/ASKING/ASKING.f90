@@ -15,12 +15,18 @@
     program ASKING
         use Question
         implicit none
+        integer i
         
-        ! •Ï”
+        ! Questionƒ‚ƒWƒ…[ƒ‹‚Ì‰Šú‰»
         CALL initialize_question()
+        DO i=1, N
+            CALL tell_answer(i)
+        END DO
         
-        print *, 'Hello World'
-
+        print *, "--------------------------"
+        CALL evaluate()
+        CALL write_csv()
+        
     end program ASKING
     
      
